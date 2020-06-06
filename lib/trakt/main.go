@@ -11,7 +11,7 @@ import (
 	"os"
 	"regexp"
 
-	"github.com/xanderstrike/goplaxt/lib/store"
+	"github.com/icco/aniplaxt/lib/store"
 	"github.com/xanderstrike/plexhooks"
 )
 

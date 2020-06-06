@@ -17,8 +17,8 @@ import (
 	"github.com/etherlabsio/healthcheck"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/xanderstrike/goplaxt/lib/store"
-	"github.com/xanderstrike/goplaxt/lib/trakt"
+	"github.com/icco/aniplaxt/lib/store"
+	"github.com/icco/aniplaxt/lib/trakt"
 	"github.com/xanderstrike/plexhooks"
 )
 

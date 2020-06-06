@@ -30,6 +30,8 @@ github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZN
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.3.0 h1:TivCn/peBQ7UY8ooIcPgZFpTNSz0Q2U6UrFlUfqbe0Q=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
+github.com/xanderstrike/goplaxt v0.0.0-20200214183940-555d673cc3b8 h1:325aLT573tFIzoWl1wL+3AK78TZsaKpX4MHQdV7OIcQ=
+github.com/xanderstrike/goplaxt v0.0.0-20200214183940-555d673cc3b8/go.mod h1:dvX71Q3Bkwu/KRtmy+B2isPHe0SGy5Zeknmx4xcfe0U=
 github.com/xanderstrike/plexhooks v0.0.0-20190226042007-cbcc0e4d77a5 h1:4dorjotJiXpevdY5hXg68XQZ/0GurQg86eWxOM/rkGY=
 github.com/xanderstrike/plexhooks v0.0.0-20190226042007-cbcc0e4d77a5/go.mod h1:IXlzovfjAZX8O7nzPwCiYe2T0i/0enZzzqkvVq8N02M=
 github.com/yuin/gopher-lua v0.0.0-20190206043414-8bfc7677f583 h1:SZPG5w7Qxq7bMcMVl6e3Ht2X7f+AAGQdzjkbyOnNNZ8=

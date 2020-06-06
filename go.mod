@@ -1,4 +1,4 @@
-module github.com/xanderstrike/goplaxt
+module github.com/icco/aniplaxt
 
 go 1.12
 
@@ -13,5 +13,6 @@ require (
 	github.com/lib/pq v1.1.1
 	github.com/peterbourgon/diskv v0.0.0-20180312054125-0646ccaebea1
 	github.com/stretchr/testify v1.3.0
+	github.com/xanderstrike/goplaxt v0.0.0-20200214183940-555d673cc3b8
 	github.com/xanderstrike/plexhooks v0.0.0-20190226042007-cbcc0e4d77a5
 )
