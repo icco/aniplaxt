@@ -75,7 +75,7 @@ func main() {
 	}
 
 	r.Get("/authorize", lib.Authorize(storage))
-	r.Post("/api", lib.API)
+	r.Post("/api", lib.API(storage))
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("hi."))
 	})
