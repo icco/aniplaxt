@@ -52,6 +52,7 @@ func SelfRoot(r *http.Request) string {
 	return u.String()
 }
 
+// AuthData generates the config for oauth2 for anilist.
 func AuthData(root string) *oauth2.Config {
 	return &oauth2.Config{
 		ClientID:     os.Getenv("ANILIST_ID"),
@@ -97,7 +98,7 @@ func Authorize(storage store.Store) http.HandlerFunc {
 	}
 }
 
-// Authorize is a handler for users to log in and store their authorization information.
+// RegisterUser is a handler for saving users.
 func RegisterUser(storage store.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := r.PostFormValue("username")

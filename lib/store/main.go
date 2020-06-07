@@ -17,13 +17,13 @@ type Store interface {
 
 // TokenToJSON serializes an oauth2 token.
 func TokenToJSON(t *oauth2.Token) []byte {
-	tokJson, err := json.Marshal(t)
+	tokJSON, err := json.Marshal(t)
 	if err != nil {
 		log.Printf("could not marshal %+v", t)
 		panic(err)
 	}
 
-	return tokJson
+	return tokJSON
 }
 
 // JSONToToken turns stored JSON into a token.
