@@ -9,7 +9,7 @@ func AuthRequest(root, username, code, refreshToken, grantType string) map[strin
 	return nil
 }
 
-func Handle(pr plexhooks.PlexResponse, user store.User) {
+func Handle(pr plexhooks.PlexResponse, user *store.User) {
 }
 
 func HandleMovie(pr plexhooks.PlexResponse, accessToken string) {
