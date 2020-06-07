@@ -1,17 +1,12 @@
-package main
+package lib
 
 import (
-	"github.com/gorilla/handlers"
-	"github.com/stretchr/testify/assert"
-
-	"context"
-	"errors"
-
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/icco/aniplaxt/lib/store"
+	"github.com/gorilla/handlers"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSelfRoot(t *testing.T) {
@@ -47,7 +42,7 @@ func TestSelfRoot(t *testing.T) {
 }
 
 func TestAllowedHostsHandler_single_hostname(t *testing.T) {
-	f := allowedHostsHandler("foo.bar")
+	f := AllowedHostsHandler("foo.bar")
 
 	rr := httptest.NewRecorder()
 	r, err := http.NewRequest("GET", "/", nil)
@@ -61,7 +56,7 @@ func TestAllowedHostsHandler_single_hostname(t *testing.T) {
 }
 
 func TestAllowedHostsHandler_multiple_hostnames(t *testing.T) {
-	f := allowedHostsHandler("foo.bar, bar.foo")
+	f := AllowedHostsHandler("foo.bar, bar.foo")
 
 	rr := httptest.NewRecorder()
 	r, err := http.NewRequest("GET", "/", nil)
@@ -75,7 +70,7 @@ func TestAllowedHostsHandler_multiple_hostnames(t *testing.T) {
 }
 
 func TestAllowedHostsHandler_mismatch_hostname(t *testing.T) {
-	f := allowedHostsHandler("unknown.host")
+	f := AllowedHostsHandler("unknown.host")
 
 	rr := httptest.NewRecorder()
 	r, err := http.NewRequest("GET", "/", nil)
@@ -89,11 +84,10 @@ func TestAllowedHostsHandler_mismatch_hostname(t *testing.T) {
 }
 
 func TestAllowedHostsHandler_alwaysAllowHealthcheck(t *testing.T) {
-	storage = &MockSuccessStore{}
-	f := allowedHostsHandler("unknown.host")
+	f := AllowedHostsHandler("unknown.host")
 
 	rr := httptest.NewRecorder()
-	r, err := http.NewRequest("GET", "/healthcheck", nil)
+	r, err := http.NewRequest("GET", "/healthz", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,15 +96,3 @@ func TestAllowedHostsHandler_alwaysAllowHealthcheck(t *testing.T) {
 	f(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})).ServeHTTP(rr, r)
 	assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
 }
-
-type MockSuccessStore struct{}
-
-func (s MockSuccessStore) Ping(ctx context.Context) error { return nil }
-func (s MockSuccessStore) WriteUser(user store.User)      {}
-func (s MockSuccessStore) GetUser(id string) *store.User  { return nil }
-
-type MockFailStore struct{}
-
-func (s MockFailStore) Ping(ctx context.Context) error { return errors.New("OH NO") }
-func (s MockFailStore) WriteUser(user store.User)      { panic(errors.New("OH NO")) }
-func (s MockFailStore) GetUser(id string) *store.User  { panic(errors.New("OH NO")) }

@@ -2,114 +2,113 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 	"time"
 
-	"database/sql"
-
-	// Postgres db library loading
-	_ "github.com/lib/pq"
+	"github.com/jackc/pgx/v4"
 )
 
 // PostgresqlStore is a storage engine that writes to postgres
 type PostgresqlStore struct {
-	db *sql.DB
+	db *pgx.ConnConfig
 }
 
-// NewPostgresqlClient creates a new db client object
-func NewPostgresqlClient(connStr string) *sql.DB {
-	db, err := sql.Open("postgres", connStr)
+// NewPostgresqlStore creates new store
+func NewPostgresqlStore(connStr string) (*PostgresqlStore, error) {
+	ctx := context.Background()
+	cfg, err := pgx.ParseConfig(connStr)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	rows, err := db.Query(`
+	db, err := pgx.ConnectConfig(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = db.Exec(ctx, `
 		CREATE TABLE IF NOT EXISTS users (
-			id varchar(255) NOT NULL,
-			username varchar(255) NOT NULL,
-			access varchar(255) NOT NULL,
-			refresh varchar(255) NOT NULL,
+			id TEXT NOT NULL,
+			username TEXT NOT NULL,
+			token TEXT NOT NULL,
 			updated timestamp with time zone NOT NULL,
 			PRIMARY KEY(id)
 		)
 	`)
-	defer rows.Close()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-
-	return db
-}
-
-// NewPostgresqlStore creates new store
-func NewPostgresqlStore(db *sql.DB) PostgresqlStore {
-	return PostgresqlStore{
-		db: db,
-	}
+	return &PostgresqlStore{
+		db: cfg,
+	}, nil
 }
 
 // Ping will check if the connection works right
-func (s PostgresqlStore) Ping(ctx context.Context) error {
-	conn, err := s.db.Conn(ctx)
+func (s *PostgresqlStore) Ping(ctx context.Context) error {
+	conn, err := pgx.ConnectConfig(ctx, s.db)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer conn.Close(ctx)
 
-	return conn.PingContext(ctx)
+	return conn.Ping(ctx)
 }
 
 // WriteUser will write a user object to postgres
-func (s PostgresqlStore) WriteUser(user User) {
-	_, err := s.db.Exec(
-		`
-			INSERT INTO users
-				(id, username, access, refresh, updated)
-				VALUES($1, $2, $3, $4, $5)
+func (s *PostgresqlStore) WriteUser(ctx context.Context, user *User) error {
+	if user.ID == "" {
+		return fmt.Errorf("user can not be empty")
+	}
+
+	conn, err := pgx.ConnectConfig(ctx, s.db)
+	if err != nil {
+		return err
+	}
+	defer conn.Close(ctx)
+
+	_, err = conn.Exec(ctx, `
+			INSERT INTO users (id, username, token, updated) VALUES ($1, $2, $3, $4)
 			ON CONFLICT(id)
-			DO UPDATE set username=EXCLUDED.username, access=EXCLUDED.access, refresh=EXCLUDED.refresh, updated=EXCLUDED.updated
-		`,
+			DO UPDATE set username=EXCLUDED.username, token=EXCLUDED.token, updated=EXCLUDED.updated`,
 		user.ID,
 		user.Username,
-		user.AccessToken,
-		user.RefreshToken,
+		TokenToJSON(user.Token),
 		user.Updated,
 	)
 	if err != nil {
-		panic(err)
+		return err
 	}
+
+	return nil
 }
 
 // GetUser will load a user from postgres
-func (s PostgresqlStore) GetUser(id string) *User {
+func (s *PostgresqlStore) GetUser(ctx context.Context, id string) (*User, error) {
+	conn, err := pgx.ConnectConfig(ctx, s.db)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close(ctx)
+
 	var username string
-	var access string
-	var refresh string
+	var tokenJSON []byte
 	var updated time.Time
 
-	err := s.db.QueryRow(
-		"SELECT username, access, refresh, updated FROM users WHERE id=$1",
-		id,
-	).Scan(
-		&username,
-		&access,
-		&refresh,
-		&updated,
-	)
+	err = conn.QueryRow(ctx, "SELECT username, token, updated FROM users WHERE id=$1", id).Scan(&username, &tokenJSON, &updated)
 	switch {
 	case err == sql.ErrNoRows:
-		panic(fmt.Errorf("no user with id %s", id))
+		return nil, fmt.Errorf("no user with id %s", id)
 	case err != nil:
-		panic(fmt.Errorf("query error: %v", err))
+		return nil, fmt.Errorf("query error: %w", err)
 	}
 	user := User{
-		ID:           id,
-		Username:     strings.ToLower(username),
-		AccessToken:  access,
-		RefreshToken: refresh,
-		Updated:      updated,
-		store:        s,
+		ID:       id,
+		Username: strings.ToLower(username),
+		Token:    JSONToToken(tokenJSON),
+		Updated:  updated,
+		store:    s,
 	}
 
-	return &user
+	return &user, nil
 }
