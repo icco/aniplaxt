@@ -71,7 +71,7 @@
     {{ if .Authorized }}
       <form class="" action="/save" method="post">
         <input class="" name="username" placeholder="Plex Username"><br><br>
-        <input type="hidden" name="token" value"{{ .Token }}" />
+        <input type="hidden" name="token" value="{{ .Token }}" />
         <input type="submit" class="button">Save</span>
       </form>
     {{ else }}

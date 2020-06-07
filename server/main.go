@@ -87,7 +87,9 @@ func main() {
 			return
 		}
 
-		tmpl.Execute(w, lib.EmptyPageData())
+		if err := tmpl.Execute(w, lib.EmptyPageData()); err != nil {
+			log.WithError(err).Error("couldn't render template")
+		}
 	})
 
 	h := &ochttp.Handler{
