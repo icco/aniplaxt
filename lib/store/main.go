@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"log"
 
 	"golang.org/x/oauth2"
 )
@@ -15,20 +16,22 @@ type Store interface {
 }
 
 // TokenToJSON serializes an oauth2 token.
-func TokenToJSON(t *oauth2.Token) string {
+func TokenToJSON(t *oauth2.Token) []byte {
 	tokJson, err := json.Marshal(t)
 	if err != nil {
+		log.Printf("could not marshal %+v", t)
 		panic(err)
 	}
 
-	return string(tokJson)
+	return tokJson
 }
 
 // JSONToToken turns stored JSON into a token.
-func JSONToToken(s string) *oauth2.Token {
-	var tok *oauth2.Token
-	if err := json.Unmarshal([]byte(s), tok); err != nil {
+func JSONToToken(s []byte) *oauth2.Token {
+	var tok oauth2.Token
+	if err := json.Unmarshal([]byte(s), &tok); err != nil {
+		log.Printf("could not unmarshal %q", s)
 		panic(err)
 	}
-	return tok
+	return &tok
 }

@@ -29,9 +29,9 @@ func NewPostgresqlStore(connStr string) (*PostgresqlStore, error) {
 
 	_, err = db.Exec(ctx, `
 		CREATE TABLE IF NOT EXISTS users (
-			id STRING NOT NULL,
-			username STRING NOT NULL,
-			token STRING NOT NULL,
+			id TEXT NOT NULL,
+			username TEXT NOT NULL,
+			token TEXT NOT NULL,
 			updated timestamp with time zone NOT NULL,
 			PRIMARY KEY(id)
 		)
@@ -92,7 +92,7 @@ func (s *PostgresqlStore) GetUser(ctx context.Context, id string) (*User, error)
 	defer conn.Close(ctx)
 
 	var username string
-	var tokenJSON string
+	var tokenJSON []byte
 	var updated time.Time
 
 	err = conn.QueryRow(ctx, "SELECT username, token, updated FROM users WHERE id=$1", id).Scan(&username, &tokenJSON, &updated)

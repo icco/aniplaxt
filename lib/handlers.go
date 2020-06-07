@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -86,7 +87,7 @@ func Authorize(storage store.Store) http.HandlerFunc {
 
 		data := EmptyPageData(r)
 		data.Authorized = true
-		data.Token = store.TokenToJSON(tok)
+		data.Token = base64.StdEncoding.EncodeToString(store.TokenToJSON(tok))
 		if err := tmpl.Execute(w, data); err != nil {
 			log.WithError(err).Error("couldn't render template")
 			http.Error(w, "something went wrong", http.StatusInternalServerError)
@@ -99,8 +100,15 @@ func Authorize(storage store.Store) http.HandlerFunc {
 func RegisterUser(storage store.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := r.PostFormValue("username")
-		tokString := r.PostFormValue("token")
+		tokBase64String := r.PostFormValue("token")
 		ctx := r.Context()
+
+		tokString, err := base64.StdEncoding.DecodeString(tokBase64String)
+		if err != nil {
+			log.WithError(err).Errorf("could not decode token")
+			http.Error(w, "something went wrong", http.StatusInternalServerError)
+			return
+		}
 
 		tok := store.JSONToToken(tokString)
 
