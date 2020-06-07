@@ -7,21 +7,17 @@ import (
 	"golang.org/x/oauth2"
 )
 
-type store interface {
-	WriteUser(user *User) error
-}
-
 // User object
 type User struct {
 	ID       string
 	Username string
 	Token    *oauth2.Token
 	Updated  time.Time
-	store    store
+	store    Store
 }
 
 // NewUser creates a new user object
-func NewUser(username string, token *oauth2.Token, storage store) (*User, error) {
+func NewUser(username string, token *oauth2.Token, storage Store) (*User, error) {
 	id := uuid.New()
 	user := &User{
 		ID:       id.String(),
@@ -31,7 +27,7 @@ func NewUser(username string, token *oauth2.Token, storage store) (*User, error)
 		store:    storage,
 	}
 
-	if err := user.save(); err != nil {
+	if err := user.store.WriteUser(user); err != nil {
 		return nil, err
 	}
 
@@ -43,9 +39,5 @@ func (user *User) UpdateUser(token *oauth2.Token) error {
 	user.Token = token
 	user.Updated = time.Now()
 
-	return user.save()
-}
-
-func (user *User) save() error {
 	return user.store.WriteUser(user)
 }

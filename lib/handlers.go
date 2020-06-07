@@ -86,13 +86,7 @@ func Authorize(storage store.Store) http.HandlerFunc {
 
 		data := EmptyPageData(r)
 		data.Authorized = true
-		tokJson, err := json.Marshal(tok)
-		if err != nil {
-			log.WithError(err).Error("bad token marshal")
-			http.Error(w, "something went wrong", http.StatusInternalServerError)
-			return
-		}
-		data.Token = string(tokJson)
+		data.Token = store.TokenToJSON(tok)
 		if err := tmpl.Execute(w, data); err != nil {
 			log.WithError(err).Error("couldn't render template")
 			http.Error(w, "something went wrong", http.StatusInternalServerError)
@@ -107,12 +101,7 @@ func RegisterUser(storage store.Store) http.HandlerFunc {
 		user := r.PostFormValue("username")
 		tokString := r.PostFormValue("token")
 
-		var tok *oauth2.Token
-		if err := json.Unmarshal([]byte(tokString), tok); err != nil {
-			log.WithError(err).Errorf("could not parse token json")
-			http.Error(w, "something went wrong", http.StatusInternalServerError)
-			return
-		}
+		tok := store.JSONToToken(tokString)
 
 		u, err := store.NewUser(user, tok, storage)
 		if err != nil {

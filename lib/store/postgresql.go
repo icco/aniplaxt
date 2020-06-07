@@ -18,27 +18,27 @@ type PostgresqlStore struct {
 }
 
 // NewPostgresqlClient creates a new db client object
-func NewPostgresqlClient(connStr string) *sql.DB {
+func NewPostgresqlClient(connStr string) (*sql.DB, error) {
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
+
 	rows, err := db.Query(`
 		CREATE TABLE IF NOT EXISTS users (
-			id varchar(255) NOT NULL,
-			username varchar(255) NOT NULL,
-			access varchar(255) NOT NULL,
-			refresh varchar(255) NOT NULL,
+			id STRING NOT NULL,
+			username STRING NOT NULL,
+			token STRING NOT NULL,
 			updated timestamp with time zone NOT NULL,
 			PRIMARY KEY(id)
 		)
 	`)
 	defer rows.Close()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return db
+	return db, nil
 }
 
 // NewPostgresqlStore creates new store
@@ -60,56 +60,47 @@ func (s PostgresqlStore) Ping(ctx context.Context) error {
 }
 
 // WriteUser will write a user object to postgres
-func (s PostgresqlStore) WriteUser(user User) {
-	_, err := s.db.Exec(
-		`
-			INSERT INTO users
-				(id, username, access, refresh, updated)
-				VALUES($1, $2, $3, $4, $5)
+func (s PostgresqlStore) WriteUser(user *User) error {
+	if user.ID == "" {
+		return fmt.Errorf("user can not be empty")
+	}
+
+	_, err := s.db.Exec(`
+			INSERT INTO users (id, username, token, updated) VALUES ($1, $2, $3, $4)
 			ON CONFLICT(id)
-			DO UPDATE set username=EXCLUDED.username, access=EXCLUDED.access, refresh=EXCLUDED.refresh, updated=EXCLUDED.updated
-		`,
+			DO UPDATE set username=EXCLUDED.username, token=EXCLUDED.token, updated=EXCLUDED.updated`,
 		user.ID,
 		user.Username,
-		user.AccessToken,
-		user.RefreshToken,
+		user.Token,
 		user.Updated,
 	)
 	if err != nil {
-		panic(err)
+		return err
 	}
+
+	return nil
 }
 
 // GetUser will load a user from postgres
-func (s PostgresqlStore) GetUser(id string) *User {
+func (s PostgresqlStore) GetUser(id string) (*User, error) {
 	var username string
-	var access string
-	var refresh string
+	var tokenJSON string
 	var updated time.Time
 
-	err := s.db.QueryRow(
-		"SELECT username, access, refresh, updated FROM users WHERE id=$1",
-		id,
-	).Scan(
-		&username,
-		&access,
-		&refresh,
-		&updated,
-	)
+	err := s.db.QueryRow("SELECT username, token, updated FROM users WHERE id=$1", id).Scan(&username, &tokenJSON, &updated)
 	switch {
 	case err == sql.ErrNoRows:
-		panic(fmt.Errorf("no user with id %s", id))
+		return nil, fmt.Errorf("no user with id %s", id)
 	case err != nil:
-		panic(fmt.Errorf("query error: %v", err))
+		return nil, fmt.Errorf("query error: %w", err)
 	}
 	user := User{
-		ID:           id,
-		Username:     strings.ToLower(username),
-		AccessToken:  access,
-		RefreshToken: refresh,
-		Updated:      updated,
-		store:        s,
+		ID:       id,
+		Username: strings.ToLower(username),
+		Token:    JSONToToken(tokenJSON),
+		Updated:  updated,
+		store:    s,
 	}
 
-	return &user
+	return &user, nil
 }
