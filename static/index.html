@@ -53,19 +53,19 @@
     </div>
 
     <p>Plex provides webhook integration for all Plex Pass subscribers, and users of their servers. A webhook is a request that the Plex application sends to third party services when a user takes an action, such as watching a movie or episode.</p>
-    <p>You can ask Plex to send these webhooks to this tool, which will then log those plays in your Trakt account.</p>
+    <p>You can ask Plex to send these webhooks to this tool, which will then log those plays in your AniList account.</p>
     <p></p>
     <p>Ready to get started? Simply enter your Plex username, and click the big friendly button.</p>
 
     {{if .Authorized}}
       <div class="faded">
-        <h3>Step 1: Authorize with Trakt</h3>
+        <h3>Step 1: Authorize with AniList</h3>
         <p>Nice.</p>
       </div>
       <div>
     {{else}}
-      <h3>Step 1: Authorize with Trakt</h3>
-      <p>This will take you to trakt.tv, then they'll send you back here.</p>
+      <h3>Step 1: Authorize with AniList</h3>
+      <p>This will take you to AniList, then they'll send you back here.</p>
       <form class="authform js-authform" action="#">
         <input class="js-username" placeholder="Plex Username"><br><br>
         <span class="button js-authorize">Authorize</span>
@@ -91,11 +91,9 @@
 
     <h3>More Options</h3>
 
-    <p>This project is open source! See the code, along with instructions on hosting your own personal Plaxt on <a href="https://github.com/xanderstrike/goplaxt">GitHub</a>.</p>
+    <p>This project is open source! See the code, along with instructions on hosting your own personal Plaxt on <a href="https://github.com/icco/aniplaxt">GitHub</a>.</p>
 
-    <p>Shoutouts to <a href="https://trakt.tv">Trakt</a> for their great API, and to <a href="https://plex.tv/">Plex</a> for killing the plugin directory.</p>
-
-    <p>Made by <a href="https://astandke.com">me</a>.</p>
+    <p>This is a fork of the original Plaxt by <a href="https://astandke.com">Alexander Standke</a>. This version is by <a href="https://natwelch.com">Nat</a></p>
 
     <script
     src="https://code.jquery.com/jquery-3.2.1.min.js"
@@ -103,7 +101,7 @@
     crossorigin="anonymous"></script>
 
     <script>
-      var authorization_link = "https://trakt.tv/oauth/authorize?client_id={{.ClientID}}&redirect_uri={{.SelfRoot}}/authorize%3fusername=USERNAME&response_type=code";
+      var authorization_link = "https://anilist.co/api/v2/oauth/authorize?client_id={{.ClientID}}&response_type=code&redirect_uri={{.SelfRoot}}/authorize%3fusername=USERNAME";
 
       $('.js-authorize').click(function() {
         var username = $('.js-username').val().toLowerCase();
