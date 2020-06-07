@@ -80,14 +80,14 @@ func main() {
 		w.Write([]byte("hi."))
 	})
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		tmpl := template.Must(template.ParseFiles("static/index.html"))
-		data := lib.AuthorizePage{
-			SelfRoot:   lib.SelfRoot(r),
-			Authorized: false,
-			URL:        "https://plaxt.astandke.com/api?id=generate-your-own-silly",
-			ClientID:   os.Getenv("ANILIST_ID"),
+		tmpl, err := template.ParseFiles("static/index.html")
+		if err != nil {
+			log.WithError(err).Errorf("could not render template")
+			http.Error(w, "Something went wrong.", http.StatusInternalServerError)
+			return
 		}
-		tmpl.Execute(w, data)
+
+		tmpl.Execute(w, lib.EmptyPageData())
 	})
 
 	h := &ochttp.Handler{

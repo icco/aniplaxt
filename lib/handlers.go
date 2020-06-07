@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
 	"regexp"
 	"strings"
 	"text/template"
@@ -15,14 +14,24 @@ import (
 	"github.com/icco/aniplaxt/lib/anilist"
 	"github.com/icco/aniplaxt/lib/store"
 	"github.com/xanderstrike/plexhooks"
+	"golang.org/x/oauth2"
 )
 
 // AuthorizePage is a data struct for authorized pages.
 type AuthorizePage struct {
-	SelfRoot   string
 	Authorized bool
 	URL        string
-	ClientID   string
+	AuthURL    string
+	Token      string
+}
+
+// EmptyPageData is a generator for a simple page data that is empty.
+func EmptyPageData() *AuthorizePage {
+	url := anilist.AuthData().AuthCodeURL("state", oauth2.AccessTypeOffline)
+	return &AuthorizePage{
+		AuthURL: url,
+		URL:     "https://aniplaxt.natwelch.com/api?id=generate-your-own-silly",
+	}
 }
 
 // SelfRoot gets the root url we are serving from.
@@ -45,22 +54,16 @@ func SelfRoot(r *http.Request) string {
 func Authorize(storage store.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		args := r.URL.Query()
-		username := strings.ToLower(args.Get("username"))
 		code := args.Get("code")
+		ctx := r.Context()
 
-		log.Debugf("handling auth request for %q", username)
-		result, err := anilist.AuthRequest(SelfRoot(r), username, code, "", "authorization_code")
+		conf := anilist.AuthData()
+		tok, err := conf.Exchange(ctx, code)
 		if err != nil {
-			log.Errorf("could not auth: %+v", err)
+			log.Errorf("could not exchange code: %+v", err)
 			http.Error(w, "something went wrong with auth", http.StatusInternalServerError)
 			return
 		}
-
-		user := store.NewUser(username, result["access_token"].(string), result["refresh_token"].(string), storage)
-
-		url := fmt.Sprintf("%s/api?id=%s", SelfRoot(r), user.ID)
-
-		log.Debugf("authorized as %q", user.ID)
 
 		tmpl, err := template.ParseFiles("static/index.html")
 		if err != nil {
@@ -69,12 +72,9 @@ func Authorize(storage store.Store) http.HandlerFunc {
 			return
 		}
 
-		data := AuthorizePage{
-			SelfRoot:   SelfRoot(r),
-			Authorized: true,
-			URL:        url,
-			ClientID:   os.Getenv("ANILIST_ID"),
-		}
+		data := EmptyPageData()
+		data.Authorized = true
+		data.Token = tok.AccessToken
 		tmpl.Execute(w, data)
 	}
 }
@@ -98,7 +98,7 @@ func API(storage store.Store) http.HandlerFunc {
 				return
 			}
 
-			user.UpdateUser(result["access_token"].(string), result["refresh_token"].(string))
+			user.UpdateUser(result["access_token"], result["refresh_token"])
 			log.Debugf("Refreshed, continuing")
 		}
 

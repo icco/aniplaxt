@@ -57,37 +57,42 @@
     <p></p>
     <p>Ready to get started? Simply enter your Plex username, and click the big friendly button.</p>
 
-    {{if .Authorized}}
+    <h3>Step 1: Authorize with AniList</h3>
+    {{ if .Authorized }}
       <div class="faded">
-        <h3>Step 1: Authorize with AniList</h3>
         <p>Nice.</p>
       </div>
-      <div>
-    {{else}}
-      <h3>Step 1: Authorize with AniList</h3>
+    {{ else }}
       <p>This will take you to AniList, then they'll send you back here.</p>
-      <form class="authform js-authform" action="#">
-        <input class="js-username" placeholder="Plex Username"><br><br>
-        <span class="button js-authorize">Authorize</span>
+      <p><a class="button" href="{{.AuthURL}}">Authorize</a></p>
+    {{ end }}
+
+    <h3>Step 2: Connect to Plex</h3>
+    {{ if .Authorized }}
+      <form class="" action="/save" method="post">
+        <input class="" name="username" placeholder="Plex Username"><br><br>
+        <input type="hidden" name="token" value"{{ .Token }}" />
+        <input type="submit" class="button">Save</span>
       </form>
+    {{ else }}
       <div class="faded">
-    {{end}}
+        Not yet.
+      </div>
+    {{ end }}
 
-      <h3>Step 2: Configure Plex</h3>
+    <h3>Step 3: Configure Plex</h3>
 
-      <p>In the Plex settings, find Webhooks. Add a webhook with the following link:</p>
+    <p>In the Plex settings, find Webhooks. Add a webhook with the following link:</p>
 
-      <pre>
-        {{.URL}}
-      </pre>
+    <pre>
+      {{.URL}}
+    </pre>
 
-      <p>Each link is specific to the username you entered in step 1. You can add as many webhooks as you like though, so your shared users can scrobble their plays too!</p>
+    <p>Each link is specific to the username you entered in step 1. You can add as many webhooks as you like though, so your shared users can scrobble their plays too!</p>
 
-      <h3>Step 3: Enjoy</h3>
+    <h3>Step 4: Enjoy</h3>
 
-      <p>You're done! Any device, any server, your plays will be logged.</p>
-
-    </div>
+    <p>You're done! Any device, any server, your plays will be logged.</p>
 
     <h3>More Options</h3>
 
@@ -95,24 +100,5 @@
 
     <p>This is a fork of the original Plaxt by <a href="https://astandke.com">Alexander Standke</a>. This version is by <a href="https://natwelch.com">Nat</a></p>
 
-    <script
-    src="https://code.jquery.com/jquery-3.2.1.min.js"
-    integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
-    crossorigin="anonymous"></script>
-
-    <script>
-      var authorization_link = "https://anilist.co/api/v2/oauth/authorize?client_id={{.ClientID}}&response_type=code&redirect_uri={{.SelfRoot}}/authorize%3fusername=USERNAME";
-
-      $('.js-authorize').click(function() {
-        var username = $('.js-username').val().toLowerCase();
-        window.location = authorization_link.replace('USERNAME', username);
-      });
-
-      $('.js-authform').submit(function(e) {
-        var username = $('.js-username').val().toLowerCase();
-        window.location = authorization_link.replace('USERNAME', username);
-        return false;
-      });
-    </script>
   </body>
 </html>
