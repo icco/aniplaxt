@@ -67,6 +67,11 @@
       <p><a class="button" href="{{.AuthURL}}">Authorize</a></p>
     {{ end }}
 
+    
+    {{ if not .Authorized }}
+    <div class="faded">
+    {{ end }}
+
     <h3>Step 2: Connect to Plex</h3>
     {{ if .Authorized }}
       <form class="" action="/save" method="post">
@@ -75,9 +80,7 @@
         <input type="submit" class="button">Save</span>
       </form>
     {{ else }}
-      <div class="faded">
-        Not yet.
-      </div>
+      <p>Not yet.</p>
     {{ end }}
 
     <h3>Step 3: Configure Plex</h3>
@@ -88,11 +91,15 @@
       {{.URL}}
     </pre>
 
-    <p>Each link is specific to the username you entered in step 1. You can add as many webhooks as you like though, so your shared users can scrobble their plays too!</p>
+    <p>Each link is specific to the username you entered in step 2. You can add as many webhooks as you like though, so your shared users can scrobble their plays too!</p>
 
     <h3>Step 4: Enjoy</h3>
 
     <p>You're done! Any device, any server, your plays will be logged.</p>
+
+    {{ if not .Authorized }}
+      </div>
+    {{ end }}
 
     <h3>More Options</h3>
 
