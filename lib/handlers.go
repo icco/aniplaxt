@@ -193,7 +193,7 @@ func API(storage store.Store) http.HandlerFunc {
 			return
 		}
 
-		if err := anilist.Handle(ctx, re, user); err != nil {
+		if err := anilist.Handle(ctx, re, user, tokSource); err != nil {
 			log.WithError(err).Errorf("could not handle")
 			http.Error(w, "something went wrong talking to anilist", http.StatusInternalServerError)
 			return
