@@ -73,7 +73,7 @@ func (s *PostgresqlStore) WriteUser(ctx context.Context, user *User) error {
 			DO UPDATE set username=EXCLUDED.username, token=EXCLUDED.token, updated=EXCLUDED.updated`,
 		user.ID,
 		user.Username,
-		user.Token,
+		TokenToJSON(user.Token),
 		user.Updated,
 	)
 	if err != nil {
