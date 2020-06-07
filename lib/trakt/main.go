@@ -42,7 +42,7 @@ func AuthRequest(root, username, code, refreshToken, grantType string) map[strin
 	return result
 }
 
-func Handle(pr plexhooks.PlexResponse, user store.User) {
+func Handle(pr plexhooks.PlexResponse, user *store.User) {
 	if pr.Metadata.LibrarySectionType == "show" {
 		HandleShow(pr, user.AccessToken)
 	} else if pr.Metadata.LibrarySectionType == "movie" {

@@ -94,6 +94,7 @@ func api(w http.ResponseWriter, r *http.Request) {
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
+		// TODO: Log and return error to user.
 		panic(err)
 	}
 
@@ -101,14 +102,12 @@ func api(w http.ResponseWriter, r *http.Request) {
 	match := regex.FindStringSubmatch(string(body))
 	re, err := plexhooks.ParseWebhook([]byte(match[0]))
 	if err != nil {
+		// TODO: Log and return error to user.
 		panic(err)
 	}
 
-	// re := plexhooks.ParseWebhook([]byte(match[0]))
-
 	if strings.ToLower(re.Account.Title) == user.Username {
-		// FIXME - make everything take the pointer
-		trakt.Handle(re, *user)
+		trakt.Handle(re, user)
 	} else {
 		log.Println(fmt.Sprintf("Plex username %s does not equal %s, skipping", strings.ToLower(re.Account.Title), user.Username))
 	}
