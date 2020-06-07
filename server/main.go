@@ -24,7 +24,7 @@ var (
 
 func main() {
 	for _, e := range []string{
-		"POSTGRESQL_URL",
+		"DATABASE_URL",
 		"ANILIST_ID",
 		"ANILIST_SECRET",
 	} {
@@ -62,12 +62,11 @@ func main() {
 	}
 
 	// Connect to db
-	dbURL := os.Getenv("POSTGRESQL_URL")
-	db, err := store.NewPostgresqlClient(dbURL)
+	dbURL := os.Getenv("DATABASE_URL")
+	storage, err := store.NewPostgresqlStore(dbURL)
 	if err != nil {
 		log.WithError(err).Fatalf("could not connect to %q", dbURL)
 	}
-	storage = store.NewPostgresqlStore(db)
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)

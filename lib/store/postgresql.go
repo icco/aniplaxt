@@ -2,29 +2,32 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 	"time"
 
-	"database/sql"
-
-	// Postgres db library loading
-	_ "github.com/lib/pq"
+	"github.com/jackc/pgx/v4"
 )
 
 // PostgresqlStore is a storage engine that writes to postgres
 type PostgresqlStore struct {
-	db *sql.DB
+	db *pgx.ConnConfig
 }
 
-// NewPostgresqlClient creates a new db client object
-func NewPostgresqlClient(connStr string) (*sql.DB, error) {
-	db, err := sql.Open("postgres", connStr)
+// NewPostgresqlStore creates new store
+func NewPostgresqlStore(connStr string) (*PostgresqlStore, error) {
+	ctx := context.Background()
+	cfg, err := pgx.ParseConfig(connStr)
+	if err != nil {
+		return nil, err
+	}
+	db, err := pgx.ConnectConfig(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	rows, err := db.Query(`
+	_, err = db.Exec(ctx, `
 		CREATE TABLE IF NOT EXISTS users (
 			id STRING NOT NULL,
 			username STRING NOT NULL,
@@ -33,39 +36,38 @@ func NewPostgresqlClient(connStr string) (*sql.DB, error) {
 			PRIMARY KEY(id)
 		)
 	`)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
-
-	return db, nil
-}
-
-// NewPostgresqlStore creates new store
-func NewPostgresqlStore(db *sql.DB) PostgresqlStore {
-	return PostgresqlStore{
-		db: db,
-	}
+	return &PostgresqlStore{
+		db: cfg,
+	}, nil
 }
 
 // Ping will check if the connection works right
-func (s PostgresqlStore) Ping(ctx context.Context) error {
-	conn, err := s.db.Conn(ctx)
+func (s *PostgresqlStore) Ping(ctx context.Context) error {
+	conn, err := pgx.ConnectConfig(ctx, s.db)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer conn.Close(ctx)
 
-	return conn.PingContext(ctx)
+	return conn.Ping(ctx)
 }
 
 // WriteUser will write a user object to postgres
-func (s PostgresqlStore) WriteUser(user *User) error {
+func (s *PostgresqlStore) WriteUser(ctx context.Context, user *User) error {
 	if user.ID == "" {
 		return fmt.Errorf("user can not be empty")
 	}
 
-	_, err := s.db.Exec(`
+	conn, err := pgx.ConnectConfig(ctx, s.db)
+	if err != nil {
+		return err
+	}
+	defer conn.Close(ctx)
+
+	_, err = conn.Exec(ctx, `
 			INSERT INTO users (id, username, token, updated) VALUES ($1, $2, $3, $4)
 			ON CONFLICT(id)
 			DO UPDATE set username=EXCLUDED.username, token=EXCLUDED.token, updated=EXCLUDED.updated`,
@@ -82,12 +84,18 @@ func (s PostgresqlStore) WriteUser(user *User) error {
 }
 
 // GetUser will load a user from postgres
-func (s PostgresqlStore) GetUser(id string) (*User, error) {
+func (s *PostgresqlStore) GetUser(ctx context.Context, id string) (*User, error) {
+	conn, err := pgx.ConnectConfig(ctx, s.db)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close(ctx)
+
 	var username string
 	var tokenJSON string
 	var updated time.Time
 
-	err := s.db.QueryRow("SELECT username, token, updated FROM users WHERE id=$1", id).Scan(&username, &tokenJSON, &updated)
+	err = conn.QueryRow(ctx, "SELECT username, token, updated FROM users WHERE id=$1", id).Scan(&username, &tokenJSON, &updated)
 	switch {
 	case err == sql.ErrNoRows:
 		return nil, fmt.Errorf("no user with id %s", id)

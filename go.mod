@@ -17,6 +17,7 @@ require (
 	github.com/gorilla/handlers v1.4.2
 	github.com/hellofresh/logging-go v0.4.0
 	github.com/icco/logrus-stackdriver-formatter v0.3.0
+	github.com/jackc/pgx/v4 v4.6.0
 	github.com/jcmturner/gokrb5/v8 v8.3.0 // indirect
 	github.com/lib/pq v1.6.0
 	github.com/peterbourgon/diskv v2.0.1+incompatible

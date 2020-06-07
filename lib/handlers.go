@@ -100,10 +100,11 @@ func RegisterUser(storage store.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := r.PostFormValue("username")
 		tokString := r.PostFormValue("token")
+		ctx := r.Context()
 
 		tok := store.JSONToToken(tokString)
 
-		u, err := store.NewUser(user, tok, storage)
+		u, err := store.NewUser(ctx, user, tok, storage)
 		if err != nil {
 			log.WithError(err).Errorf("could not create user")
 			http.Error(w, "something went wrong", http.StatusInternalServerError)
@@ -138,7 +139,7 @@ func API(storage store.Store) http.HandlerFunc {
 		log.Debugf("webhook call for %q", id)
 
 		conf := AuthData(SelfRoot(r))
-		user, err := storage.GetUser(id)
+		user, err := storage.GetUser(ctx, id)
 		if err != nil {
 			log.WithError(err).Errorf("could not get user")
 			http.Error(w, "something went wrong", http.StatusInternalServerError)
@@ -153,7 +154,7 @@ func API(storage store.Store) http.HandlerFunc {
 			return
 		}
 
-		if err := user.UpdateUser(tok); err != nil {
+		if err := user.UpdateUser(ctx, tok); err != nil {
 			log.WithError(err).Errorf("could not update user")
 			http.Error(w, "something went wrong", http.StatusInternalServerError)
 			return

@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,7 +18,7 @@ type User struct {
 }
 
 // NewUser creates a new user object
-func NewUser(username string, token *oauth2.Token, storage Store) (*User, error) {
+func NewUser(ctx context.Context, username string, token *oauth2.Token, storage Store) (*User, error) {
 	id := uuid.New()
 	user := &User{
 		ID:       id.String(),
@@ -27,7 +28,7 @@ func NewUser(username string, token *oauth2.Token, storage Store) (*User, error)
 		store:    storage,
 	}
 
-	if err := user.store.WriteUser(user); err != nil {
+	if err := user.store.WriteUser(ctx, user); err != nil {
 		return nil, err
 	}
 
@@ -35,9 +36,9 @@ func NewUser(username string, token *oauth2.Token, storage Store) (*User, error)
 }
 
 // UpdateUser updates an existing user object
-func (user *User) UpdateUser(token *oauth2.Token) error {
+func (user *User) UpdateUser(ctx context.Context, token *oauth2.Token) error {
 	user.Token = token
 	user.Updated = time.Now()
 
-	return user.store.WriteUser(user)
+	return user.store.WriteUser(ctx, user)
 }
