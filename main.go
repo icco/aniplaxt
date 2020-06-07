@@ -59,7 +59,12 @@ func authorize(w http.ResponseWriter, r *http.Request) {
 	username := strings.ToLower(args["username"][0])
 	log.Print(fmt.Sprintf("Handling auth request for %s", username))
 	code := args["code"][0]
-	result := anilist.AuthRequest(SelfRoot(r), username, code, "", "authorization_code")
+	result, err := anilist.AuthRequest(SelfRoot(r), username, code, "", "authorization_code")
+	if err != nil {
+		log.Errorf("could not auth: %+v", err)
+		http.Error(w, "something went wrong with auth", http.StatusInternalServerError)
+		return
+	}
 
 	user := store.NewUser(username, result["access_token"].(string), result["refresh_token"].(string), storage)
 
@@ -86,30 +91,44 @@ func api(w http.ResponseWriter, r *http.Request) {
 
 	tokenAge := time.Since(user.Updated).Hours()
 	if tokenAge > 1440 { // tokens expire after 3 months, so we refresh after 2
-		log.Println("User access token outdated, refreshing...")
-		result := anilist.AuthRequest(SelfRoot(r), user.Username, "", user.RefreshToken, "refresh_token")
+		log.Debugf("User access token outdated, refreshing...")
+		result, err := anilist.AuthRequest(SelfRoot(r), user.Username, "", user.RefreshToken, "refresh_token")
+		if err != nil {
+			log.Errorf("could not auth: %+v", err)
+			http.Error(w, "something went wrong with auth", http.StatusInternalServerError)
+			return
+		}
+
 		user.UpdateUser(result["access_token"].(string), result["refresh_token"].(string))
-		log.Println("Refreshed, continuing")
+		log.Debugf("Refreshed, continuing")
 	}
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		// TODO: Log and return error to user.
-		panic(err)
+		log.Errorf("could not read body: %+v", err)
+		http.Error(w, "something went wrong", http.StatusInternalServerError)
+		return
 	}
 
 	regex := regexp.MustCompile("({.*})") // not the best way really
 	match := regex.FindStringSubmatch(string(body))
 	re, err := plexhooks.ParseWebhook([]byte(match[0]))
 	if err != nil {
-		// TODO: Log and return error to user.
-		panic(err)
+		log.Errorf("could not parse body: %+v", err)
+		http.Error(w, "something went wrong", http.StatusInternalServerError)
+		return
 	}
 
 	if strings.ToLower(re.Account.Title) == user.Username {
-		anilist.Handle(re, user)
-	} else {
-		log.Println(fmt.Sprintf("Plex username %s does not equal %s, skipping", strings.ToLower(re.Account.Title), user.Username))
+		log.Errorf("Plex username %s does not equal %s, skipping", strings.ToLower(re.Account.Title), user.Username)
+		json.NewEncoder(w).Encode("wrong user")
+		return
+	}
+
+	if err := anilist.Handle(re, user); err != nil {
+		log.Errorf("could not handle: %+v", err)
+		http.Error(w, "something went wrong talking to anilist", http.StatusInternalServerError)
+		return
 	}
 
 	json.NewEncoder(w).Encode("success")
@@ -117,7 +136,7 @@ func api(w http.ResponseWriter, r *http.Request) {
 
 func allowedHostsHandler(allowedHostnames string) func(http.Handler) http.Handler {
 	allowedHosts := strings.Split(regexp.MustCompile("https://|http://|\\s+").ReplaceAllString(strings.ToLower(allowedHostnames), ""), ",")
-	log.Println("Allowed Hostnames:", allowedHosts)
+	log.Infof("Allowed Hostnames: %v", allowedHosts)
 	return func(h http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.EscapedPath() == "/healthcheck" {
@@ -176,13 +195,13 @@ func main() {
 
 	if os.Getenv("POSTGRESQL_URL") != "" {
 		storage = store.NewPostgresqlStore(store.NewPostgresqlClient(os.Getenv("POSTGRESQL_URL")))
-		log.Println("Using postgresql storage:", os.Getenv("POSTGRESQL_URL"))
+		log.Infof("Using postgresql storage: %q", os.Getenv("POSTGRESQL_URL"))
 	} else if os.Getenv("REDIS_URI") != "" {
 		storage = store.NewRedisStore(store.NewRedisClient(os.Getenv("REDIS_URI"), os.Getenv("REDIS_PASSWORD")))
-		log.Println("Using redis storage:", os.Getenv("REDIS_URI"))
+		log.Infof("Using redis storage: %q", os.Getenv("REDIS_URI"))
 	} else {
 		storage = store.NewDiskStore()
-		log.Println("Using disk storage:")
+		log.Infof("Using disk storage")
 	}
 
 	r := chi.NewRouter()
