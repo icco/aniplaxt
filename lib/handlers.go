@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"strings"
 	"text/template"
-	"time"
 
 	"github.com/icco/aniplaxt/lib/anilist"
 	"github.com/icco/aniplaxt/lib/store"
@@ -87,14 +86,57 @@ func Authorize(storage store.Store) http.HandlerFunc {
 
 		data := EmptyPageData(r)
 		data.Authorized = true
+		tokJson, err := json.Marshal(tok)
+		if err != nil {
+			log.WithError(err).Error("bad token marshal")
+			http.Error(w, "something went wrong", http.StatusInternalServerError)
+			return
+		}
+		data.Token = string(tokJson)
+		if err := tmpl.Execute(w, data); err != nil {
+			log.WithError(err).Error("couldn't render template")
+			http.Error(w, "something went wrong", http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
+// Authorize is a handler for users to log in and store their authorization information.
+func RegisterUser(storage store.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user := r.PostFormValue("username")
+		tokString := r.PostFormValue("token")
+
+		var tok *oauth2.Token
+		if err := json.Unmarshal([]byte(tokString), tok); err != nil {
+			log.WithError(err).Errorf("could not parse token json")
+			http.Error(w, "something went wrong", http.StatusInternalServerError)
+			return
+		}
+
+		u, err := store.NewUser(user, tok, storage)
+		if err != nil {
+			log.WithError(err).Errorf("could not create user")
+			http.Error(w, "something went wrong", http.StatusInternalServerError)
+			return
+		}
+
+		tmpl, err := template.ParseFiles("static/index.html")
+		if err != nil {
+			log.Errorf("could not parse index: %+v", err)
+			http.Error(w, "something went wrong", http.StatusInternalServerError)
+			return
+		}
+
+		data := EmptyPageData(r)
+		data.Authorized = true
 		data.Token = tok.AccessToken
+		data.URL = fmt.Sprintf("%s/api?id=%s", SelfRoot(r), u.ID)
 		if err := tmpl.Execute(w, data); err != nil {
 			log.WithError(err).Error("couldn't render template")
 			http.Error(w, "something went wrong with auth", http.StatusInternalServerError)
 			return
 		}
-
-		// TODO: Success response?
 	}
 }
 
@@ -102,23 +144,24 @@ func Authorize(storage store.Store) http.HandlerFunc {
 func API(storage store.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		args := r.URL.Query()
-		id := args["id"][0]
+		id := args.Get("id")
 		log.Debugf("webhook call for %q", id)
 
+		conf := AuthData(SelfRoot(r))
 		user := storage.GetUser(id)
+		tokSource := conf.TokenSource(r.Context(), user.Token)
 
-		tokenAge := time.Since(user.Updated).Hours()
-		if tokenAge > 1440 { // tokens expire after 3 months, so we refresh after 2
-			log.Debugf("User access token outdated, refreshing...")
-			result, err := anilist.AuthRequest(SelfRoot(r), user.Username, "", user.RefreshToken, "refresh_token")
-			if err != nil {
-				log.Errorf("could not auth: %+v", err)
-				http.Error(w, "something went wrong with auth", http.StatusInternalServerError)
-				return
-			}
+		tok, err := tokSource.Token()
+		if err != nil {
+			log.WithError(err).Errorf("could not get token")
+			http.Error(w, "something went wrong", http.StatusInternalServerError)
+			return
+		}
 
-			user.UpdateUser(result["access_token"], result["refresh_token"])
-			log.Debugf("Refreshed, continuing")
+		if err := user.UpdateUser(tok); err != nil {
+			log.WithError(err).Errorf("could not update user")
+			http.Error(w, "something went wrong", http.StatusInternalServerError)
+			return
 		}
 
 		body, err := ioutil.ReadAll(r.Body)
@@ -128,11 +171,12 @@ func API(storage store.Store) http.HandlerFunc {
 			return
 		}
 
+		// TODO: Figure out wtf this is.
 		regex := regexp.MustCompile("({.*})") // not the best way really
 		match := regex.FindStringSubmatch(string(body))
 		re, err := plexhooks.ParseWebhook([]byte(match[0]))
 		if err != nil {
-			log.Errorf("could not parse body: %+v", err)
+			log.WithError(err).Errorf("could not parse body")
 			http.Error(w, "something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -143,8 +187,8 @@ func API(storage store.Store) http.HandlerFunc {
 			return
 		}
 
-		if err := anilist.Handle(re, user); err != nil {
-			log.Errorf("could not handle: %+v", err)
+		if err := anilist.Handle(ctx, re, user); err != nil {
+			log.WithError(err).Errorf("could not handle")
 			http.Error(w, "something went wrong talking to anilist", http.StatusInternalServerError)
 			return
 		}

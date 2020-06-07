@@ -1,59 +1,51 @@
 package store
 
 import (
-	"fmt"
-	"os"
 	"time"
+
+	"github.com/google/uuid"
+	"golang.org/x/oauth2"
 )
 
 type store interface {
-	WriteUser(user User)
+	WriteUser(user *User) error
 }
 
 // User object
 type User struct {
-	ID           string
-	Username     string
-	AccessToken  string
-	RefreshToken string
-	Updated      time.Time
-	store        store
-}
-
-func uuid() string {
-	f, _ := os.OpenFile("/dev/urandom", os.O_RDONLY, 0)
-	b := make([]byte, 16)
-	f.Read(b)
-	f.Close()
-	uuid := fmt.Sprintf("%x%x%x%x%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
-
-	return uuid
+	ID       string
+	Username string
+	Token    *oauth2.Token
+	Updated  time.Time
+	store    store
 }
 
 // NewUser creates a new user object
-func NewUser(username, accessToken, refreshToken string, store store) User {
-	id := uuid()
-	user := User{
-		ID:           id,
-		Username:     username,
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		Updated:      time.Now(),
-		store:        store,
+func NewUser(username string, token *oauth2.Token, storage store) (*User, error) {
+	id := uuid.New()
+	user := &User{
+		ID:       id.String(),
+		Username: username,
+		Token:    token,
+		Updated:  time.Now(),
+		store:    storage,
 	}
-	user.save()
-	return user
+
+	if err := user.save(); err != nil {
+		return nil, err
+	}
+
+	return user, nil
 }
 
 // UpdateUser updates an existing user object
-func (user User) UpdateUser(accessToken, refreshToken string) {
-	user.AccessToken = accessToken
-	user.RefreshToken = refreshToken
+func (user *User) UpdateUser(token *oauth2.Token) error {
+	user.Token = token
 	user.Updated = time.Now()
 
-	user.save()
+	return user.save()
 }
 
-func (user User) save() {
-	user.store.WriteUser(user)
+func (user *User) save() error {
+	return user.store.WriteUser(user)
 }

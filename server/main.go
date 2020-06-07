@@ -74,11 +74,13 @@ func main() {
 		r.Use(lib.AllowedHostsHandler(os.Getenv("ALLOWED_HOSTNAMES")))
 	}
 
-	r.Get("/authorize", lib.Authorize(storage))
-	r.Post("/api", lib.API(storage))
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("hi."))
 	})
+
+	r.Get("/authorize", lib.Authorize(storage))
+	r.Post("/api", lib.API(storage))
+	r.Post("/save", lib.RegisterUser(storage))
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		tmpl, err := template.ParseFiles("static/index.html")
 		if err != nil {
