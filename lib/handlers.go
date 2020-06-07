@@ -45,9 +45,10 @@ func SelfRoot(r *http.Request) string {
 func Authorize(storage store.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		args := r.URL.Query()
-		username := strings.ToLower(args["username"][0])
-		log.Print(fmt.Sprintf("Handling auth request for %s", username))
-		code := args["code"][0]
+		username := strings.ToLower(args.Get("username"))
+		code := args.Get("code")
+
+		log.Debugf("handling auth request for %q", username)
 		result, err := anilist.AuthRequest(SelfRoot(r), username, code, "", "authorization_code")
 		if err != nil {
 			log.Errorf("could not auth: %+v", err)
@@ -59,9 +60,15 @@ func Authorize(storage store.Store) http.HandlerFunc {
 
 		url := fmt.Sprintf("%s/api?id=%s", SelfRoot(r), user.ID)
 
-		log.Print(fmt.Sprintf("Authorized as %s", user.ID))
+		log.Debugf("authorized as %q", user.ID)
 
-		tmpl := template.Must(template.ParseFiles("static/index.html"))
+		tmpl, err := template.ParseFiles("static/index.html")
+		if err != nil {
+			log.Errorf("could not parse index: %+v", err)
+			http.Error(w, "something went wrong", http.StatusInternalServerError)
+			return
+		}
+
 		data := AuthorizePage{
 			SelfRoot:   SelfRoot(r),
 			Authorized: true,
