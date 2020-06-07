@@ -134,11 +134,17 @@ func API(storage store.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		args := r.URL.Query()
 		id := args.Get("id")
+		ctx := r.Context()
 		log.Debugf("webhook call for %q", id)
 
 		conf := AuthData(SelfRoot(r))
-		user := storage.GetUser(id)
-		tokSource := conf.TokenSource(r.Context(), user.Token)
+		user, err := storage.GetUser(id)
+		if err != nil {
+			log.WithError(err).Errorf("could not get user")
+			http.Error(w, "something went wrong", http.StatusInternalServerError)
+			return
+		}
+		tokSource := conf.TokenSource(ctx, user.Token)
 
 		tok, err := tokSource.Token()
 		if err != nil {

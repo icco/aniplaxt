@@ -2,6 +2,7 @@ package anilist
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -48,7 +49,7 @@ func AuthRequest(root, username, code, refreshToken, grantType string) (map[stri
 
 // Handle decides what API calls to make based off of the incoming Plex
 // webhook.
-func Handle(pr plexhooks.PlexResponse, user *store.User) error {
+func Handle(ctx context.Context, pr plexhooks.PlexResponse, user *store.User) error {
 	return fmt.Errorf("unimplemented")
 }
 

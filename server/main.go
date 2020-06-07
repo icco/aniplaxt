@@ -23,6 +23,16 @@ var (
 )
 
 func main() {
+	for _, e := range []string{
+		"POSTGRESQL_URL",
+		"ANILIST_ID",
+		"ANILIST_SECRET",
+	} {
+		if os.Getenv(e) == "" {
+			log.Fatalf("%q can not be unset", e)
+		}
+	}
+
 	port := "8080"
 	if fromEnv := os.Getenv("PORT"); fromEnv != "" {
 		port = fromEnv
@@ -51,16 +61,13 @@ func main() {
 		})
 	}
 
-	if os.Getenv("POSTGRESQL_URL") != "" {
-		storage = store.NewPostgresqlStore(store.NewPostgresqlClient(os.Getenv("POSTGRESQL_URL")))
-		log.Infof("Using postgresql storage: %q", os.Getenv("POSTGRESQL_URL"))
-	} else if os.Getenv("REDIS_URI") != "" {
-		storage = store.NewRedisStore(store.NewRedisClient(os.Getenv("REDIS_URI"), os.Getenv("REDIS_PASSWORD")))
-		log.Infof("Using redis storage: %q", os.Getenv("REDIS_URI"))
-	} else {
-		storage = store.NewDiskStore()
-		log.Infof("Using disk storage")
+	// Connect to db
+	dbURL := os.Getenv("POSTGRESQL_URL")
+	db, err := store.NewPostgresqlClient(dbURL)
+	if err != nil {
+		log.WithError(err).Fatalf("could not connect to %q", dbURL)
 	}
+	storage = store.NewPostgresqlStore(db)
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
