@@ -1,12 +1,10 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"html/template"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -14,15 +12,24 @@ import (
 	"strings"
 	"time"
 
-	"github.com/etherlabsio/healthcheck"
-	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
+	"contrib.go.opencensus.io/exporter/stackdriver"
+	"contrib.go.opencensus.io/exporter/stackdriver/monitoredresource"
+	"contrib.go.opencensus.io/exporter/stackdriver/propagation"
+	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
+	"github.com/icco/aniplaxt/lib"
 	"github.com/icco/aniplaxt/lib/store"
 	"github.com/icco/aniplaxt/lib/trakt"
 	"github.com/xanderstrike/plexhooks"
+	"go.opencensus.io/plugin/ochttp"
+	"go.opencensus.io/stats/view"
+	"go.opencensus.io/trace"
 )
 
-var storage store.Store
+var (
+	storage store.Store
+	log     = lib.InitLogging()
+)
 
 type AuthorizePage struct {
 	SelfRoot   string
@@ -139,17 +146,35 @@ func allowedHostsHandler(allowedHostnames string) func(http.Handler) http.Handle
 	}
 }
 
-func healthcheckHandler() http.Handler {
-	return healthcheck.Handler(
-		healthcheck.WithTimeout(5*time.Second),
-		healthcheck.WithChecker("storage", healthcheck.CheckerFunc(func(ctx context.Context) error {
-			return storage.Ping(ctx)
-		})),
-	)
-}
-
 func main() {
-	log.Print("Started!")
+	port := "8080"
+	if fromEnv := os.Getenv("PORT"); fromEnv != "" {
+		port = fromEnv
+	}
+	log.Infof("Starting up on http://localhost:%s", port)
+
+	if os.Getenv("ENABLE_STACKDRIVER") != "" {
+		labels := &stackdriver.Labels{}
+		labels.Set("app", "aniplaxt", "The name of the current app.")
+		sd, err := stackdriver.NewExporter(stackdriver.Options{
+			ProjectID:               "icco-cloud",
+			MonitoredResource:       monitoredresource.Autodetect(),
+			DefaultMonitoringLabels: labels,
+			DefaultTraceAttributes:  map[string]interface{}{"app": "aniplaxt"},
+		})
+
+		if err != nil {
+			log.WithError(err).Fatalf("failed to create the stackdriver exporter")
+		}
+		defer sd.Flush()
+
+		view.RegisterExporter(sd)
+		trace.RegisterExporter(sd)
+		trace.ApplyConfig(trace.Config{
+			DefaultSampler: trace.AlwaysSample(),
+		})
+	}
+
 	if os.Getenv("POSTGRESQL_URL") != "" {
 		storage = store.NewPostgresqlStore(store.NewPostgresqlClient(os.Getenv("POSTGRESQL_URL")))
 		log.Println("Using postgresql storage:", os.Getenv("POSTGRESQL_URL"))
@@ -161,22 +186,23 @@ func main() {
 		log.Println("Using disk storage:")
 	}
 
-	router := mux.NewRouter()
-	// Assumption: Behind a proper web server (nginx/traefik, etc) that removes/replaces trusted headers
-	router.Use(handlers.ProxyHeaders)
+	r := chi.NewRouter()
+	r.Use(middleware.RequestID)
+	r.Use(middleware.RealIP)
+	r.Use(middleware.Recoverer)
+	r.Use(lib.LoggingMiddleware())
 	// which hostnames we are allowing
-	// REDIRECT_URI = old legacy list
 	// ALLOWED_HOSTNAMES = new accurate config variable
 	// No env = all hostnames
-	if os.Getenv("REDIRECT_URI") != "" {
-		router.Use(allowedHostsHandler(os.Getenv("REDIRECT_URI")))
-	} else if os.Getenv("ALLOWED_HOSTNAMES") != "" {
-		router.Use(allowedHostsHandler(os.Getenv("ALLOWED_HOSTNAMES")))
+	if os.Getenv("ALLOWED_HOSTNAMES") != "" {
+		r.Use(allowedHostsHandler(os.Getenv("ALLOWED_HOSTNAMES")))
 	}
-	router.HandleFunc("/authorize", authorize).Methods("GET")
-	router.HandleFunc("/api", api).Methods("POST")
-	router.Handle("/healthcheck", healthcheckHandler()).Methods("GET")
-	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/authorize", authorize)
+	r.Post("/api", api)
+	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("hi."))
+	})
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		tmpl := template.Must(template.ParseFiles("static/index.html"))
 		data := AuthorizePage{
 			SelfRoot:   SelfRoot(r),
@@ -185,11 +211,18 @@ func main() {
 			ClientID:   os.Getenv("TRAKT_ID"),
 		}
 		tmpl.Execute(w, data)
-	}).Methods("GET")
-	listen := os.Getenv("LISTEN")
-	if listen == "" {
-		listen = "0.0.0.0:8000"
+	})
+
+	h := &ochttp.Handler{
+		Handler:     r,
+		Propagation: &propagation.HTTPFormat{},
 	}
-	log.Print("Started on " + listen + "!")
-	log.Fatal(http.ListenAndServe(listen, router))
+	if err := view.Register([]*view.View{
+		ochttp.ServerRequestCountView,
+		ochttp.ServerResponseCountByStatusCode,
+	}...); err != nil {
+		log.WithError(err).Fatal("Failed to register ochttp views")
+	}
+
+	log.Fatal(http.ListenAndServe(":"+port, h))
 }
