@@ -60,7 +60,7 @@ func Authorize(storage store.Store) http.HandlerFunc {
 		conf := anilist.AuthData()
 		tok, err := conf.Exchange(ctx, code)
 		if err != nil {
-			log.Errorf("could not exchange code: %+v", err)
+			log.WithError(err).Errorf("could not exchange code")
 			http.Error(w, "something went wrong with auth", http.StatusInternalServerError)
 			return
 		}
@@ -75,7 +75,13 @@ func Authorize(storage store.Store) http.HandlerFunc {
 		data := EmptyPageData()
 		data.Authorized = true
 		data.Token = tok.AccessToken
-		tmpl.Execute(w, data)
+		if err := tmpl.Execute(w, data); err != nil {
+			log.WithError(err).Error("couldn't render template")
+			http.Error(w, "something went wrong with auth", http.StatusInternalServerError)
+			return
+		}
+
+		// TODO: Success response?
 	}
 }
 
