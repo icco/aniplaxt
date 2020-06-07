@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"text/template"
@@ -26,8 +27,8 @@ type AuthorizePage struct {
 }
 
 // EmptyPageData is a generator for a simple page data that is empty.
-func EmptyPageData() *AuthorizePage {
-	url := anilist.AuthData().AuthCodeURL("state", oauth2.AccessTypeOffline)
+func EmptyPageData(r *http.Request) *AuthorizePage {
+	url := AuthData(SelfRoot(r)).AuthCodeURL("state", oauth2.AccessTypeOffline)
 	return &AuthorizePage{
 		AuthURL: url,
 		URL:     "https://aniplaxt.natwelch.com/api?id=generate-your-own-silly",
@@ -50,6 +51,18 @@ func SelfRoot(r *http.Request) string {
 	return u.String()
 }
 
+func AuthData(root string) *oauth2.Config {
+	return &oauth2.Config{
+		ClientID:     os.Getenv("ANILIST_ID"),
+		ClientSecret: os.Getenv("ANILIST_SECRET"),
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  "https://anilist.co/api/v2/oauth/authorize",
+			TokenURL: "https://anilist.co/api/v2/oauth/token",
+		},
+		RedirectURL: fmt.Sprintf("%s/authorize", root),
+	}
+}
+
 // Authorize is a handler for users to log in and store their authorization information.
 func Authorize(storage store.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -57,7 +70,7 @@ func Authorize(storage store.Store) http.HandlerFunc {
 		code := args.Get("code")
 		ctx := r.Context()
 
-		conf := anilist.AuthData()
+		conf := AuthData(SelfRoot(r))
 		tok, err := conf.Exchange(ctx, code)
 		if err != nil {
 			log.WithError(err).Errorf("could not exchange code")
@@ -72,7 +85,7 @@ func Authorize(storage store.Store) http.HandlerFunc {
 			return
 		}
 
-		data := EmptyPageData()
+		data := EmptyPageData(r)
 		data.Authorized = true
 		data.Token = tok.AccessToken
 		if err := tmpl.Execute(w, data); err != nil {

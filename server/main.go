@@ -87,7 +87,7 @@ func main() {
 			return
 		}
 
-		if err := tmpl.Execute(w, lib.EmptyPageData()); err != nil {
+		if err := tmpl.Execute(w, lib.EmptyPageData(r)); err != nil {
 			log.WithError(err).Error("couldn't render template")
 		}
 	})

@@ -9,19 +9,7 @@ import (
 
 	"github.com/icco/aniplaxt/lib/store"
 	"github.com/xanderstrike/plexhooks"
-	"golang.org/x/oauth2"
 )
-
-func AuthData() *oauth2.Config {
-	return &oauth2.Config{
-		ClientID:     os.Getenv("ANILIST_ID"),
-		ClientSecret: os.Getenv("ANILIST_SECRET"),
-		Endpoint: oauth2.Endpoint{
-			AuthURL:  "https://anilist.co/api/v2/oauth/authorize",
-			TokenURL: "https://anilist.co/api/v2/oauth/token",
-		},
-	}
-}
 
 // AuthRequest parses the auth request to anilist.
 func AuthRequest(root, username, code, refreshToken, grantType string) (map[string]string, error) {
