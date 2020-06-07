@@ -21,6 +21,7 @@ import (
 // AuthorizePage is a data struct for authorized pages.
 type AuthorizePage struct {
 	Authorized bool
+	User       bool
 	URL        string
 	AuthURL    string
 	Token      string
@@ -129,6 +130,7 @@ func RegisterUser(storage store.Store) http.HandlerFunc {
 		data := EmptyPageData(r)
 		data.Authorized = true
 		data.Token = tok.AccessToken
+		data.User = true
 		data.URL = fmt.Sprintf("%s/api?id=%s", SelfRoot(r), u.ID)
 		if err := tmpl.Execute(w, data); err != nil {
 			log.WithError(err).Error("couldn't render template")

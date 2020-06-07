@@ -59,9 +59,7 @@
 
     <h3>Step 1: Authorize with AniList</h3>
     {{ if .Authorized }}
-      <div class="faded">
-        <p>Nice.</p>
-      </div>
+      <div class="faded"><p>Nice.</p></div>
     {{ else }}
       <p>This will take you to AniList, then they'll send you back here.</p>
       <p><a class="button" href="{{.AuthURL}}">Authorize</a></p>
@@ -74,11 +72,15 @@
 
     <h3>Step 2: Connect to Plex</h3>
     {{ if .Authorized }}
-      <form class="" action="/save" method="post">
-        <input class="" name="username" placeholder="Plex Username"><br><br>
-        <input type="hidden" name="token" value="{{ .Token }}" />
-        <input type="submit" class="button" value="Save" />
-      </form>
+      {{ if .User }}
+        <div class="faded"><p>Woot.</p></div>
+      {{ else }}
+        <form class="" action="/save" method="post">
+          <input class="" name="username" placeholder="Plex Username"><br><br>
+          <input type="hidden" name="token" value="{{ .Token }}" />
+          <input type="submit" class="button" value="Save" />
+        </form>
+      {{ end }}
     {{ else }}
       <p>Not yet.</p>
     {{ end }}
