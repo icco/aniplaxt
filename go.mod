@@ -18,6 +18,7 @@ require (
 	github.com/icco/logrus-stackdriver-formatter v0.3.0
 	github.com/jcmturner/gokrb5/v8 v8.3.0 // indirect
 	github.com/lib/pq v1.6.0
+	github.com/magiconair/properties v1.8.1
 	github.com/peterbourgon/diskv v2.0.1+incompatible
 	github.com/sirupsen/logrus v1.6.0
 	github.com/stretchr/testify v1.5.1
