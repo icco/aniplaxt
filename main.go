@@ -18,8 +18,8 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/icco/aniplaxt/lib"
+	"github.com/icco/aniplaxt/lib/anilist"
 	"github.com/icco/aniplaxt/lib/store"
-	"github.com/icco/aniplaxt/lib/trakt"
 	"github.com/xanderstrike/plexhooks"
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/stats/view"
@@ -59,7 +59,7 @@ func authorize(w http.ResponseWriter, r *http.Request) {
 	username := strings.ToLower(args["username"][0])
 	log.Print(fmt.Sprintf("Handling auth request for %s", username))
 	code := args["code"][0]
-	result := trakt.AuthRequest(SelfRoot(r), username, code, "", "authorization_code")
+	result := anilist.AuthRequest(SelfRoot(r), username, code, "", "authorization_code")
 
 	user := store.NewUser(username, result["access_token"].(string), result["refresh_token"].(string), storage)
 
@@ -72,7 +72,7 @@ func authorize(w http.ResponseWriter, r *http.Request) {
 		SelfRoot:   SelfRoot(r),
 		Authorized: true,
 		URL:        url,
-		ClientID:   os.Getenv("TRAKT_ID"),
+		ClientID:   os.Getenv("ANILIST_ID"),
 	}
 	tmpl.Execute(w, data)
 }
@@ -87,7 +87,7 @@ func api(w http.ResponseWriter, r *http.Request) {
 	tokenAge := time.Since(user.Updated).Hours()
 	if tokenAge > 1440 { // tokens expire after 3 months, so we refresh after 2
 		log.Println("User access token outdated, refreshing...")
-		result := trakt.AuthRequest(SelfRoot(r), user.Username, "", user.RefreshToken, "refresh_token")
+		result := anilist.AuthRequest(SelfRoot(r), user.Username, "", user.RefreshToken, "refresh_token")
 		user.UpdateUser(result["access_token"].(string), result["refresh_token"].(string))
 		log.Println("Refreshed, continuing")
 	}
@@ -107,7 +107,7 @@ func api(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if strings.ToLower(re.Account.Title) == user.Username {
-		trakt.Handle(re, user)
+		anilist.Handle(re, user)
 	} else {
 		log.Println(fmt.Sprintf("Plex username %s does not equal %s, skipping", strings.ToLower(re.Account.Title), user.Username))
 	}
@@ -207,7 +207,7 @@ func main() {
 			SelfRoot:   SelfRoot(r),
 			Authorized: false,
 			URL:        "https://plaxt.astandke.com/api?id=generate-your-own-silly",
-			ClientID:   os.Getenv("TRAKT_ID"),
+			ClientID:   os.Getenv("ANILIST_ID"),
 		}
 		tmpl.Execute(w, data)
 	})
