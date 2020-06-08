@@ -87,6 +87,7 @@ func main() {
 	r.Get("/authorize", lib.Authorize(storage))
 	r.Post("/api", lib.API(storage))
 	r.Post("/save", lib.RegisterUser(storage))
+
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		tmpl, err := template.ParseFiles("static/index.html")
 		if err != nil {
@@ -98,6 +99,10 @@ func main() {
 		if err := tmpl.Execute(w, lib.EmptyPageData(r)); err != nil {
 			log.WithError(err).Error("couldn't render template")
 		}
+	})
+
+	r.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "static/favicon.ico")
 	})
 
 	h := &ochttp.Handler{
