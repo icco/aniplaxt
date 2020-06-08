@@ -189,11 +189,11 @@ func API(storage store.Store) http.HandlerFunc {
 			return
 		}
 
-		if strings.ToLower(re.Account.Title) == user.Username {
+		if strings.ToLower(re.Account.Title) != strings.ToLower(user.Username) {
 			log.WithFields(logrus.Fields{
 				"user":    user,
 				"account": re.Account,
-			}).Errorf("Plex username %q does not equal %q, skipping", strings.ToLower(re.Account.Title), user.Username)
+			}).Errorf("Plex username %q does not equal %q, skipping", strings.ToLower(re.Account.Title), strings.ToLower(user.Username))
 			json.NewEncoder(w).Encode("wrong user")
 			return
 		}
