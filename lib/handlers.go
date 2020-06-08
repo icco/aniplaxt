@@ -14,6 +14,7 @@ import (
 
 	"github.com/icco/aniplaxt/lib/anilist"
 	"github.com/icco/aniplaxt/lib/store"
+	"github.com/sirupsen/logrus"
 	"github.com/xanderstrike/plexhooks"
 	"golang.org/x/oauth2"
 )
@@ -189,7 +190,10 @@ func API(storage store.Store) http.HandlerFunc {
 		}
 
 		if strings.ToLower(re.Account.Title) == user.Username {
-			log.Errorf("Plex username %s does not equal %s, skipping", strings.ToLower(re.Account.Title), user.Username)
+			log.WithFields(logrus.Fields{
+				"user":    user,
+				"account": re.Account,
+			}).Errorf("Plex username %q does not equal %q, skipping", strings.ToLower(re.Account.Title), user.Username)
 			json.NewEncoder(w).Encode("wrong user")
 			return
 		}

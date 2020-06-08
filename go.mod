@@ -11,11 +11,13 @@ require (
 	github.com/golang/protobuf v1.4.2 // indirect
 	github.com/google/go-cmp v0.4.1 // indirect
 	github.com/google/uuid v1.1.1
+	github.com/gorilla/handlers v1.4.2
 	github.com/hellofresh/logging-go v0.4.0
 	github.com/icco/logrus-stackdriver-formatter v0.3.0
 	github.com/jackc/pgconn v1.6.0 // indirect
 	github.com/jackc/pgx/v4 v4.6.0
 	github.com/sirupsen/logrus v1.6.0
+	github.com/stretchr/testify v1.5.1
 	github.com/xanderstrike/plexhooks v0.0.0-20190226042007-cbcc0e4d77a5
 	go.opencensus.io v0.22.3
 	golang.org/x/crypto v0.0.0-20200604202706-70a84ac30bf9 // indirect
