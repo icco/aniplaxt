@@ -1,14 +1,17 @@
 package main
 
 import (
+	"fmt"
 	"html/template"
 	"net/http"
 	"os"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/icco/aniplaxt"
 	"github.com/icco/aniplaxt/lib"
 	"github.com/icco/aniplaxt/lib/store"
+	"github.com/icco/gutil/logging"
 )
 
 var (
@@ -76,16 +79,5 @@ func main() {
 		http.ServeFile(w, r, "static/favicon.ico")
 	})
 
-	h := &ochttp.Handler{
-		Handler:     r,
-		Propagation: &propagation.HTTPFormat{},
-	}
-	if err := view.Register([]*view.View{
-		ochttp.ServerRequestCountView,
-		ochttp.ServerResponseCountByStatusCode,
-	}...); err != nil {
-		log.WithError(err).Fatal("Failed to register ochttp views")
-	}
-
-	log.Fatal(http.ListenAndServe(":"+port, h))
+	log.Fatal(http.ListenAndServe(":"+port, r))
 }
