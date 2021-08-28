@@ -82,7 +82,7 @@ func Authorize(storage store.Store) http.HandlerFunc {
 		conf := AuthData(SelfRoot(r))
 		tok, err := conf.Exchange(ctx, code)
 		if err != nil {
-			log.WithError(err).Errorf("could not exchange code")
+			log.Errorw("could not exchange code", zap.Error(err))
 			http.Error(w, "something went wrong with auth", http.StatusInternalServerError)
 			return
 		}
@@ -114,7 +114,7 @@ func RegisterUser(storage store.Store) http.HandlerFunc {
 
 		tokString, err := base64.StdEncoding.DecodeString(tokBase64String)
 		if err != nil {
-			log.WithError(err).Errorf("could not decode token", zap.Error(err))
+			log.Errorw("could not decode token", zap.Error(err))
 			http.Error(w, "something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -123,7 +123,7 @@ func RegisterUser(storage store.Store) http.HandlerFunc {
 
 		u, err := store.NewUser(ctx, user, tok, storage)
 		if err != nil {
-			log.WithError(err).Errorf("could not create user", zap.Error(err))
+			log.Errorw("could not create user", zap.Error(err))
 			http.Error(w, "something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -141,7 +141,7 @@ func RegisterUser(storage store.Store) http.HandlerFunc {
 		data.User = true
 		data.URL = fmt.Sprintf("%s/api?id=%s", SelfRoot(r), u.ID)
 		if err := tmpl.Execute(w, data); err != nil {
-			log.WithError(err).Error("couldn't render template")
+			log.Errorw("couldn't render template", zap.Error(err))
 			http.Error(w, "something went wrong with auth", http.StatusInternalServerError)
 			return
 		}
