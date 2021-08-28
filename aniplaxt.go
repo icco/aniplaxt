@@ -2,5 +2,6 @@
 package aniplaxt
 
 const (
+	// Service is the name of the service reported in the logs.
 	Service = "aniplaxt"
 )
