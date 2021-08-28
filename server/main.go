@@ -12,11 +12,13 @@ import (
 	"github.com/icco/aniplaxt/lib"
 	"github.com/icco/aniplaxt/lib/store"
 	"github.com/icco/gutil/logging"
+	"go.uber.org/zap"
 )
 
 var (
 	storage store.Store
 	log     = logging.Must(logging.NewLogger(aniplaxt.Service))
+	project = "icco-cloud"
 )
 
 func main() {
@@ -40,12 +42,12 @@ func main() {
 	dbURL := os.Getenv("DATABASE_URL")
 	storage, err := store.NewPostgresqlStore(dbURL)
 	if err != nil {
-		log.WithError(err).Fatalf("could not connect to %q", dbURL)
+		log.Fatalw("could not connect to db", "db_url", dbURL, zap.Error(err))
 	}
 
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP)
-	r.Use(logging.Middleware(log.Desugar(), *project))
+	r.Use(logging.Middleware(log.Desugar(), project))
 
 	// which hostnames we are allowing
 	// ALLOWED_HOSTNAMES = new accurate config variable
@@ -65,13 +67,13 @@ func main() {
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		tmpl, err := template.ParseFiles("static/index.html")
 		if err != nil {
-			log.WithError(err).Errorf("could not render template")
+			log.Errorw("could not render template", zap.Error(err))
 			http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 			return
 		}
 
 		if err := tmpl.Execute(w, lib.EmptyPageData(r)); err != nil {
-			log.WithError(err).Error("couldn't render template")
+			log.Errorw("couldn't render template", zap.Error(err))
 		}
 	})
 
