@@ -195,7 +195,7 @@ func API(storage store.Store) http.HandlerFunc {
 			return
 		}
 
-		if strings.ToLower(re.Account.Title) != strings.ToLower(user.Username) {
+		if strings.EqualFold(re.Account.Title, user.Username) {
 			log.Errorw(fmt.Sprintf("Plex username %q does not equal %q, skipping", strings.ToLower(re.Account.Title), strings.ToLower(user.Username)), "user", user, "account", re.Account)
 			json.NewEncoder(w).Encode("wrong user")
 			return
@@ -215,7 +215,7 @@ func API(storage store.Store) http.HandlerFunc {
 // hostnames and filters requests so those without a Host header with a value
 // in the list recieve a 403. /healthz is whitelisted.
 func AllowedHostsHandler(allowedHostnames string) func(http.Handler) http.Handler {
-	allowedHosts := strings.Split(regexp.MustCompile("https://|http://|\\s+").ReplaceAllString(strings.ToLower(allowedHostnames), ""), ",")
+	allowedHosts := strings.Split(regexp.MustCompile(`https://|http://|\s+`).ReplaceAllString(strings.ToLower(allowedHostnames), ""), ",")
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.EscapedPath() == "/healthz" {

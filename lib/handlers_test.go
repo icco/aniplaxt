@@ -34,7 +34,7 @@ func TestSelfRoot(t *testing.T) {
 
 	// Test ProxyHeader handler
 	rr := httptest.NewRecorder()
-	r, err = http.NewRequest("GET", "/validate", nil)
+	r, _ = http.NewRequest("GET", "/validate", nil)
 	r.Header.Set("X-Forwarded-Host", "foo.bar")
 	r.Header.Set("X-Forwarded-Proto", "https")
 	handlers.ProxyHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})).ServeHTTP(rr, r)

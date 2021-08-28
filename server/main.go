@@ -40,7 +40,8 @@ func main() {
 
 	// Connect to db
 	dbURL := os.Getenv("DATABASE_URL")
-	storage, err := store.NewPostgresqlStore(dbURL)
+	var err error
+	storage, err = store.NewPostgresqlStore(dbURL)
 	if err != nil {
 		log.Fatalw("could not connect to db", "db_url", dbURL, zap.Error(err))
 	}
