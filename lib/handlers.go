@@ -12,11 +12,17 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/icco/aniplaxt"
 	"github.com/icco/aniplaxt/lib/anilist"
 	"github.com/icco/aniplaxt/lib/store"
-	"github.com/sirupsen/logrus"
+	"github.com/icco/gutil/logging"
 	"github.com/xanderstrike/plexhooks"
+	"go.uber.org/zap"
 	"golang.org/x/oauth2"
+)
+
+var (
+	log = logging.Must(logging.NewLogger(aniplaxt.Service))
 )
 
 // AuthorizePage is a data struct for authorized pages.
@@ -76,14 +82,14 @@ func Authorize(storage store.Store) http.HandlerFunc {
 		conf := AuthData(SelfRoot(r))
 		tok, err := conf.Exchange(ctx, code)
 		if err != nil {
-			log.WithError(err).Errorf("could not exchange code")
+			log.Errorw("could not exchange code", zap.Error(err))
 			http.Error(w, "something went wrong with auth", http.StatusInternalServerError)
 			return
 		}
 
 		tmpl, err := template.ParseFiles("static/index.html")
 		if err != nil {
-			log.Errorf("could not parse index: %+v", err)
+			log.Errorw("could not parse index", zap.Error(err))
 			http.Error(w, "something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -92,7 +98,7 @@ func Authorize(storage store.Store) http.HandlerFunc {
 		data.Authorized = true
 		data.Token = base64.StdEncoding.EncodeToString(store.TokenToJSON(tok))
 		if err := tmpl.Execute(w, data); err != nil {
-			log.WithError(err).Error("couldn't render template")
+			log.Errorw("couldn't render template", zap.Error(err))
 			http.Error(w, "something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -108,7 +114,7 @@ func RegisterUser(storage store.Store) http.HandlerFunc {
 
 		tokString, err := base64.StdEncoding.DecodeString(tokBase64String)
 		if err != nil {
-			log.WithError(err).Errorf("could not decode token")
+			log.Errorw("could not decode token", zap.Error(err))
 			http.Error(w, "something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -117,14 +123,14 @@ func RegisterUser(storage store.Store) http.HandlerFunc {
 
 		u, err := store.NewUser(ctx, user, tok, storage)
 		if err != nil {
-			log.WithError(err).Errorf("could not create user")
+			log.Errorw("could not create user", zap.Error(err))
 			http.Error(w, "something went wrong", http.StatusInternalServerError)
 			return
 		}
 
 		tmpl, err := template.ParseFiles("static/index.html")
 		if err != nil {
-			log.Errorf("could not parse index: %+v", err)
+			log.Errorf("could not parse index: %+v", err, zap.Error(err))
 			http.Error(w, "something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -135,7 +141,7 @@ func RegisterUser(storage store.Store) http.HandlerFunc {
 		data.User = true
 		data.URL = fmt.Sprintf("%s/api?id=%s", SelfRoot(r), u.ID)
 		if err := tmpl.Execute(w, data); err != nil {
-			log.WithError(err).Error("couldn't render template")
+			log.Errorw("couldn't render template", zap.Error(err))
 			http.Error(w, "something went wrong with auth", http.StatusInternalServerError)
 			return
 		}
@@ -153,7 +159,7 @@ func API(storage store.Store) http.HandlerFunc {
 		conf := AuthData(SelfRoot(r))
 		user, err := storage.GetUser(ctx, id)
 		if err != nil {
-			log.WithError(err).Errorf("could not get user")
+			log.Errorw("could not get user", zap.Error(err))
 			http.Error(w, "something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -161,20 +167,20 @@ func API(storage store.Store) http.HandlerFunc {
 
 		tok, err := tokSource.Token()
 		if err != nil {
-			log.WithError(err).Errorf("could not get token")
+			log.Errorw("could not get token", zap.Error(err))
 			http.Error(w, "something went wrong", http.StatusInternalServerError)
 			return
 		}
 
 		if err := user.UpdateUser(ctx, tok); err != nil {
-			log.WithError(err).Errorf("could not update user")
+			log.Errorw("could not update user", zap.Error(err))
 			http.Error(w, "something went wrong", http.StatusInternalServerError)
 			return
 		}
 
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			log.Errorf("could not read body: %+v", err)
+			log.Errorw("could not read body", zap.Error(err))
 			http.Error(w, "something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -184,22 +190,19 @@ func API(storage store.Store) http.HandlerFunc {
 		match := regex.FindStringSubmatch(string(body))
 		re, err := plexhooks.ParseWebhook([]byte(match[0]))
 		if err != nil {
-			log.WithError(err).Errorf("could not parse body")
+			log.Errorw("could not parse body", zap.Error(err))
 			http.Error(w, "something went wrong", http.StatusInternalServerError)
 			return
 		}
 
-		if strings.ToLower(re.Account.Title) != strings.ToLower(user.Username) {
-			log.WithFields(logrus.Fields{
-				"user":    user,
-				"account": re.Account,
-			}).Errorf("Plex username %q does not equal %q, skipping", strings.ToLower(re.Account.Title), strings.ToLower(user.Username))
+		if strings.EqualFold(re.Account.Title, user.Username) {
+			log.Errorw(fmt.Sprintf("Plex username %q does not equal %q, skipping", strings.ToLower(re.Account.Title), strings.ToLower(user.Username)), "user", user, "account", re.Account)
 			json.NewEncoder(w).Encode("wrong user")
 			return
 		}
 
 		if err := anilist.Handle(ctx, re, user, tokSource); err != nil {
-			log.WithError(err).Errorf("could not handle")
+			log.Errorw("could not handle", zap.Error(err))
 			http.Error(w, "something went wrong talking to anilist", http.StatusInternalServerError)
 			return
 		}
@@ -212,8 +215,7 @@ func API(storage store.Store) http.HandlerFunc {
 // hostnames and filters requests so those without a Host header with a value
 // in the list recieve a 403. /healthz is whitelisted.
 func AllowedHostsHandler(allowedHostnames string) func(http.Handler) http.Handler {
-	allowedHosts := strings.Split(regexp.MustCompile("https://|http://|\\s+").ReplaceAllString(strings.ToLower(allowedHostnames), ""), ",")
-	log.Infof("Allowed Hostnames: %v", allowedHosts)
+	allowedHosts := strings.Split(regexp.MustCompile(`https://|http://|\s+`).ReplaceAllString(strings.ToLower(allowedHostnames), ""), ",")
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.EscapedPath() == "/healthz" {

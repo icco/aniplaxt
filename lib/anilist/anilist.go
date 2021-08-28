@@ -3,17 +3,22 @@ package anilist
 import (
 	"context"
 	"fmt"
-	"log"
 
+	"github.com/icco/aniplaxt"
 	"github.com/icco/aniplaxt/lib/store"
+	"github.com/icco/gutil/logging"
 	"github.com/xanderstrike/plexhooks"
 	"golang.org/x/oauth2"
+)
+
+var (
+	log = logging.Must(logging.NewLogger(aniplaxt.Service))
 )
 
 // Handle decides what API calls to make based off of the incoming Plex
 // webhook.
 func Handle(ctx context.Context, pr plexhooks.PlexResponse, user *store.User, ts oauth2.TokenSource) error {
-	log.Printf("recieved %+v", pr)
+	log.Debugw("recieved hook", "plex_response", pr, "user", user)
 	switch pr.Metadata.LibrarySectionType {
 	case "show":
 		return HandleShow(ctx, pr, user, ts)
