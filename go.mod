@@ -6,7 +6,7 @@ require (
 	github.com/go-chi/chi/v5 v5.0.7
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/handlers v1.4.2
-	github.com/icco/gutil v0.0.0-20220220010210-d08e793d43b0
+	github.com/icco/gutil v0.0.0-20220220010526-7c82f1ebf02d
 	github.com/jackc/pgx/v4 v4.15.0
 	github.com/onsi/ginkgo v1.7.0 // indirect
 	github.com/onsi/gomega v1.4.3 // indirect
